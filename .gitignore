@@ -1,0 +1,15 @@
+.next/
+node_modules/
+dist/
+build/
+coverage/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+reports/*
+!.gitkeep
+!reports/.gitkeep
+engine/python/src/*.egg-info/
+tsconfig.tsbuildinfo
+dev-server.log

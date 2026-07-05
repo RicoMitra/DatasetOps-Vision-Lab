@@ -1,0 +1,94 @@
+{
+  "version": "datasetops-report-v1",
+  "createdAt": "2026-07-05T00:00:00.000Z",
+  "dataset": {
+    "path": "samples/tiny-dataset",
+    "totalImages": 3,
+    "validImages": 3,
+    "corruptImages": 0,
+    "splits": {
+      "train": 2,
+      "val": 1
+    },
+    "warnings": []
+  },
+  "classes": {
+    "organic": {
+      "count": 2,
+      "splits": {
+        "train": 1,
+        "val": 1
+      }
+    },
+    "recyclable": {
+      "count": 1,
+      "splits": {
+        "train": 1
+      }
+    }
+  },
+  "imbalance": {
+    "minorityClass": "recyclable",
+    "majorityClass": "organic",
+    "minorityClassShare": 0.3333,
+    "majorityToMinorityRatio": 2,
+    "isImbalanced": false
+  },
+  "quality": {
+    "lowResolutionImages": 0,
+    "blurredImages": 1,
+    "brightnessOutliers": 0,
+    "contrastOutliers": 1,
+    "averages": {
+      "width": 320,
+      "height": 320,
+      "blurScore": 12.4,
+      "brightness": 98.2,
+      "contrast": 18.5
+    }
+  },
+  "duplicates": {
+    "exactDuplicateGroups": 1,
+    "groups": []
+  },
+  "leakage": {
+    "leakedGroups": 1,
+    "groups": []
+  },
+  "confusion": null,
+  "score": {
+    "riskScore": 47.2,
+    "qualityScore": 52.8,
+    "factors": {
+      "leakage": 30,
+      "imbalance": 0,
+      "lowResolution": 0,
+      "duplicates": 3.3,
+      "blur": 3.3,
+      "brightnessContrast": 1.6,
+      "confusion": 0
+    },
+    "weights": {
+      "leakage": 30,
+      "imbalance": 20,
+      "lowResolution": 15,
+      "duplicates": 10,
+      "blur": 10,
+      "brightnessContrast": 10,
+      "confusion": 5
+    }
+  },
+  "recommendations": [
+    {
+      "severity": "high",
+      "problem": "Exact duplicate images appear across train/validation/test splits.",
+      "evidence": "1 hash group crosses split boundaries.",
+      "action": "Remove leaked duplicates before trusting validation or test scores."
+    }
+  ],
+  "limitations": [
+    "No semantic object understanding.",
+    "No near-duplicate detection in v1.",
+    "No guarantee test performance improves; this tool audits readiness risk only."
+  ]
+}

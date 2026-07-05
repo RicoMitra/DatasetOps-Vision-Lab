@@ -1,0 +1,25 @@
+{
+  "name": "datasetops-vision-lab",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22.13.0",
+    "python": ">=3.11"
+  },
+  "scripts": {
+    "dev": "pnpm --dir apps/web dev",
+    "build": "pnpm --dir apps/web build",
+    "start": "pnpm --dir apps/web start",
+    "lint": "pnpm --dir apps/web lint",
+    "typecheck": "pnpm --dir apps/web typecheck",
+    "test": "pnpm --dir apps/web test",
+    "test:e2e": "pnpm --dir apps/web test:e2e",
+    "engine:scan": "python scripts/engine.py scan",
+    "engine:test": "python scripts/engine.py test",
+    "engine:demo": "python scripts/engine.py demo"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}
