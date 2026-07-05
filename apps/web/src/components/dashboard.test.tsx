@@ -12,7 +12,9 @@ test("renders transparent limitations and rejects invalid report upload", async 
   expect(screen.getByText("No near-duplicate detection in v1.")).toBeInTheDocument();
   expect(screen.getByText("Run Python Audit Engine first")).toBeInTheDocument();
   expect(screen.getByText(/pnpm engine:scan/)).toBeInTheDocument();
+  expect(screen.getByText("Risk Breakdown")).toBeInTheDocument();
   expect(screen.getAllByText("Not checked in Fast Scan").length).toBeGreaterThan(1);
+  expect(screen.getByText(/requires train\/val\/test structure/)).toBeInTheDocument();
   expect(screen.getByText(/Leakage requires train\/val\/test/)).toBeInTheDocument();
 
   const input = screen.getByLabelText("Import latest-report.json");

@@ -17,10 +17,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  PolarAngleAxis,
-  PolarGrid,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -36,6 +32,13 @@ const limitations = [
 ];
 
 const engineCommand = "pnpm engine:scan -- --path ./dataset --out ./reports/latest-report.json";
+
+type RiskBreakdownItem = {
+  name: string;
+  contribution: number | null;
+  status: "Checked" | "Not checked" | "Not checked in Fast Scan" | "Sampled";
+  reason: string;
+};
 
 export function DatasetOpsDashboard() {
   const [report, setReport] = useState<DatasetOpsReport | null>(null);
@@ -80,7 +83,7 @@ export function DatasetOpsDashboard() {
     : fastScan
       ? Object.entries(fastScan.classes).map(([name, item]) => ({ name, count: item.count }))
       : [];
-  const riskData = report ? Object.entries(report.score.factors).map(([metric, value]) => ({ metric, value })) : [];
+  const riskBreakdown = buildRiskBreakdown(report, fastScan);
   const auditMode = report ? "Python audit report" : fastScan ? "Browser Fast Scan" : "Waiting for report";
   const reportStatus = report
     ? `Python report loaded with ${report.dataset.validImages.toLocaleString("en-US")} valid images.`
@@ -215,27 +218,13 @@ export function DatasetOpsDashboard() {
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <BarChart3 size={20} aria-hidden="true" />
-                {report ? "Risk radar" : "Audit coverage"}
+                Risk Breakdown
               </h2>
-              {report ? (
-                <div className="h-[260px]" aria-label="Risk factor chart">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={riskData}>
-                      <PolarGrid stroke="oklch(0.45 0.02 78 / 0.55)" />
-                      <PolarAngleAxis dataKey="metric" tick={{ fill: "oklch(0.78 0.02 78)", fontSize: 11 }} />
-                      <Radar dataKey="value" fill="oklch(0.62 0.1 225)" fillOpacity={0.35} stroke="oklch(0.72 0.11 225)" />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  <CoverageRow label="Folder labels" value={fastScan ? "Checked" : "Waiting"} />
-                  <CoverageRow label="Class distribution" value={fastScan ? "Checked" : "Waiting"} />
-                  <CoverageRow label="Resolution sampling" value="Fast Scan only" />
-                  <CoverageRow label="Leakage" value="Python report required" />
-                  <CoverageRow label="Duplicates / blur / corrupt files" value="Python report required" />
-                </div>
-              )}
+              <div className="grid gap-3">
+                {riskBreakdown.map((item) => (
+                  <RiskBreakdownRow key={item.name} item={item} />
+                ))}
+              </div>
               <p className="mt-4 rounded-[1.25rem] bg-white/[0.035] p-3 text-xs leading-5 text-[oklch(0.74_0.02_78)]">
                 Leakage requires train/val/test folders. A train-only scan has no validation or test split to compare against.
               </p>
@@ -356,11 +345,30 @@ function UploadPanel({
   );
 }
 
-function CoverageRow({ label, value }: { label: string; value: string }) {
+function RiskBreakdownRow({ item }: { item: RiskBreakdownItem }) {
+  const width = item.contribution == null ? 0 : Math.min(100, Math.max(4, item.contribution * 3.3));
+
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
-      <span className="text-sm text-[oklch(0.76_0.02_78)]">{label}</span>
-      <span className="text-right font-mono text-sm text-[oklch(0.78_0.1_225)]">{value}</span>
+    <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[oklch(0.92_0.01_78)]">{item.name}</h3>
+          <p className="mt-1 text-xs leading-5 text-[oklch(0.7_0.02_78)]">{item.reason}</p>
+        </div>
+        <div className="text-right">
+          <div className="font-mono text-sm text-[oklch(0.78_0.1_225)]">
+            {item.contribution == null ? item.status : `${item.contribution} risk`}
+          </div>
+          <div className="mt-1 text-xs text-[oklch(0.68_0.02_78)]">{item.status}</div>
+        </div>
+      </div>
+      {item.contribution == null ? (
+        <div className="mt-3 h-2 rounded-full bg-white/[0.06]" aria-hidden="true" />
+      ) : (
+        <div className="mt-3 h-2 rounded-full bg-white/[0.06]" aria-label={`${item.name} contributes ${item.contribution} risk`}>
+          <div className="h-full rounded-full bg-[oklch(0.72_0.11_78)]" style={{ width: `${width}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -409,3 +417,108 @@ const fallbackRecommendations: Recommendation[] = [
     action: "Run the Python engine or choose a local image folder to start the audit.",
   },
 ];
+
+function buildRiskBreakdown(report: DatasetOpsReport | null, fastScan: FastScanResult | null): RiskBreakdownItem[] {
+  if (report) {
+    return [
+      {
+        name: "Leakage",
+        contribution: report.score.factors.leakage,
+        status: "Checked",
+        reason: report.leakage.leakedGroups
+          ? `${report.leakage.leakedGroups} cross-split hash group(s) found.`
+          : "No exact duplicate hash group crossed split boundaries.",
+      },
+      {
+        name: "Duplicate",
+        contribution: report.score.factors.duplicates,
+        status: "Checked",
+        reason: report.duplicates.exactDuplicateGroups
+          ? `${report.duplicates.exactDuplicateGroups} exact duplicate group(s) found.`
+          : "No exact duplicate hash groups found.",
+      },
+      {
+        name: "Imbalance",
+        contribution: report.score.factors.imbalance,
+        status: "Checked",
+        reason: report.imbalance.minorityClass
+          ? `${report.imbalance.minorityClass} is ${(report.imbalance.minorityClassShare * 100).toFixed(1)}% of dataset.`
+          : "No class imbalance could be computed.",
+      },
+      {
+        name: "Resolution",
+        contribution: report.score.factors.lowResolution,
+        status: "Checked",
+        reason: `${report.quality.lowResolutionImages} image(s) are under the 256px threshold.`,
+      },
+      {
+        name: "Blur",
+        contribution: report.score.factors.blur,
+        status: "Checked",
+        reason: `${report.quality.blurredImages} image(s) are below the blur threshold.`,
+      },
+      {
+        name: "Brightness / Contrast",
+        contribution: report.score.factors.brightnessContrast,
+        status: "Checked",
+        reason: `${report.quality.brightnessOutliers + report.quality.contrastOutliers} image-quality outlier(s) found.`,
+      },
+      {
+        name: "Confusion",
+        contribution: report.score.factors.confusion,
+        status: "Checked",
+        reason: report.confusion?.topPairs?.length
+          ? "Confusion CSV contains repeated actual/predicted error pairs."
+          : "No confusion concentration found or no confusion CSV was provided.",
+      },
+    ];
+  }
+
+  const classEntries = fastScan ? Object.entries(fastScan.classes) : [];
+  const total = fastScan?.totalImages ?? 0;
+  const minority = classEntries.length
+    ? classEntries.reduce((smallest, current) => (current[1].count < smallest[1].count ? current : smallest))
+    : null;
+
+  return [
+    {
+      name: "Leakage",
+      contribution: null,
+      status: "Not checked",
+      reason: "requires train/val/test structure and exact hash comparison.",
+    },
+    {
+      name: "Duplicate",
+      contribution: null,
+      status: "Not checked in Fast Scan",
+      reason: "SHA-256 duplicate detection runs in the Python audit report.",
+    },
+    {
+      name: "Imbalance",
+      contribution: fastScan ? fastScan.riskScore : null,
+      status: fastScan ? "Checked" : "Not checked",
+      reason:
+        fastScan && minority
+          ? `${minority[0]} is ${((minority[1].count / Math.max(total, 1)) * 100).toFixed(1)}% of dataset.`
+          : "Choose a folder to parse class distribution.",
+    },
+    {
+      name: "Resolution",
+      contribution: null,
+      status: "Not checked in Fast Scan",
+      reason: "Import a Python report for full image dimensions and low-resolution rate.",
+    },
+    {
+      name: "Blur",
+      contribution: null,
+      status: "Not checked in Fast Scan",
+      reason: "Laplacian blur score needs the Python audit engine.",
+    },
+    {
+      name: "Brightness / Contrast",
+      contribution: null,
+      status: "Not checked in Fast Scan",
+      reason: "Brightness and contrast statistics need the Python audit engine.",
+    },
+  ];
+}
