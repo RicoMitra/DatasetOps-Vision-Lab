@@ -1,6 +1,17 @@
 "use client";
 
-import { AlertTriangle, BarChart3, Database, FileJson, FolderSearch, Gauge, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  Copy,
+  Database,
+  FileJson,
+  FolderSearch,
+  Gauge,
+  ShieldCheck,
+  TerminalSquare,
+} from "lucide-react";
 import { useState } from "react";
 import {
   Bar,
@@ -24,10 +35,13 @@ const limitations = [
   "No guarantee test performance improves; this tool audits readiness risk only.",
 ];
 
+const engineCommand = "pnpm engine:scan -- --path ./dataset --out ./reports/latest-report.json";
+
 export function DatasetOpsDashboard() {
   const [report, setReport] = useState<DatasetOpsReport | null>(null);
   const [fastScan, setFastScan] = useState<FastScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [savedSummary] = useState(() => loadSummary());
 
   async function importReport(file: File | undefined) {
@@ -50,6 +64,12 @@ export function DatasetOpsDashboard() {
     setReport(null);
   }
 
+  async function copyCommand() {
+    await navigator.clipboard.writeText(engineCommand);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  }
+
   const score = report?.score.qualityScore ?? fastScan?.qualityScore ?? savedSummary?.qualityScore ?? 0;
   const risk = report?.score.riskScore ?? fastScan?.riskScore ?? savedSummary?.riskScore ?? 0;
   const datasetPath = report?.dataset.path ?? savedSummary?.datasetPath ?? "No report imported";
@@ -60,17 +80,16 @@ export function DatasetOpsDashboard() {
     : fastScan
       ? Object.entries(fastScan.classes).map(([name, item]) => ({ name, count: item.count }))
       : [];
-  const riskData = report
-    ? Object.entries(report.score.factors).map(([metric, value]) => ({ metric, value }))
-    : [
-        { metric: "risk", value: risk },
-        { metric: "quality", value: score },
-      ];
+  const riskData = report ? Object.entries(report.score.factors).map(([metric, value]) => ({ metric, value })) : [];
+  const auditMode = report ? "Python audit report" : fastScan ? "Browser Fast Scan" : "Waiting for report";
+  const reportStatus = report
+    ? `Python report loaded with ${report.dataset.validImages.toLocaleString("en-US")} valid images.`
+    : "No Python report imported yet. Deep evidence cards are intentionally marked as unchecked.";
 
   return (
     <main className="min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,oklch(0.64_0.09_75/.18),transparent_30%),radial-gradient(circle_at_86%_10%,oklch(0.63_0.1_230/.16),transparent_24%),linear-gradient(135deg,oklch(0.13_0.01_70),oklch(0.08_0.01_250)_55%,oklch(0.11_0.015_35))] px-4 py-4 text-[oklch(0.95_0.01_75)] md:px-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1480px] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-[2rem] border border-[oklch(0.72_0.08_80/.18)] bg-[oklch(0.18_0.015_70/.74)] p-5 shadow-[0_30px_90px_-45px_oklch(0.02_0.02_70/.9)] backdrop-blur-xl lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)]">
+      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1480px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="rounded-[2rem] border border-[oklch(0.72_0.08_80/.18)] bg-[oklch(0.18_0.015_70/.74)] p-5 shadow-[0_30px_90px_-45px_oklch(0.02_0.02_70/.9)] backdrop-blur-xl lg:sticky lg:top-4 lg:self-start">
           <div className="flex items-center gap-3">
             <div className="grid size-12 place-items-center rounded-[1.1rem] bg-[oklch(0.72_0.11_78)] text-[oklch(0.13_0.02_70)]">
               <Database size={22} aria-hidden="true" />
@@ -86,9 +105,10 @@ export function DatasetOpsDashboard() {
             <p className="break-words rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-[oklch(0.78_0.02_78)]">
               {datasetPath}
             </p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid gap-2 text-sm">
+              <Metric label="Mode" value={auditMode} compact />
               <Metric label="Images" value={totalImages.toLocaleString()} />
-              <Metric label="Risk" value={risk.toString()} />
+              <Metric label="Risk score" value={risk.toString()} />
             </div>
           </section>
 
@@ -141,13 +161,41 @@ export function DatasetOpsDashboard() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-5">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
+                <section className="rounded-[1.5rem] border border-[oklch(0.72_0.11_78/.2)] bg-[oklch(0.13_0.012_70/.72)] p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[oklch(0.72_0.11_78/.16)] text-[oklch(0.78_0.12_78)]">
+                      <TerminalSquare size={22} aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-semibold">Run Python Audit Engine first</h2>
+                      <p className="mt-1 text-sm leading-6 text-[oklch(0.74_0.02_78)]">
+                        The browser cannot execute Python. Run this command in your local terminal, then import the generated
+                        `latest-report.json` here.
+                      </p>
+                      <div className="mt-4 flex flex-col gap-3 rounded-[1.1rem] border border-white/10 bg-[oklch(0.08_0.01_70/.7)] p-3 md:flex-row md:items-center">
+                        <code className="min-w-0 flex-1 break-words font-mono text-sm text-[oklch(0.86_0.04_78)]">
+                          {engineCommand}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={copyCommand}
+                          className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-[oklch(0.72_0.11_78)] px-4 text-sm font-medium text-[oklch(0.13_0.02_70)] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.98]"
+                        >
+                          {copied ? <CheckCircle2 size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                          {copied ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-[oklch(0.72_0.02_78)]">{reportStatus}</p>
+                    </div>
+                  </div>
+                </section>
                 <UploadPanel
                   icon={<FileJson size={22} aria-hidden="true" />}
-                  title="Import Python audit report"
-                  copy="Load latest-report.json from python -m datasetops_engine scan."
+                  title="Import latest-report.json"
+                  copy="Load the JSON report after the Python engine finishes. This unlocks leakage, duplicate, corrupt image, blur, brightness, and contrast evidence."
                   accept="application/json,.json"
                   label="Import latest-report.json"
                   onChange={(files) => importReport(files?.[0])}
@@ -155,7 +203,7 @@ export function DatasetOpsDashboard() {
                 <UploadPanel
                   icon={<FolderSearch size={22} aria-hidden="true" />}
                   title="Browser Fast Scan"
-                  copy="Parse local folders for labels, splits, dataset size, and quick class-balance risk."
+                  copy="Quickly parse local folders for labels, splits, dataset size, and class-balance risk. It does not check duplicate, leakage, corrupt, or blur evidence."
                   accept="image/*"
                   label="Choose dataset folder for Browser Fast Scan"
                   directory
@@ -167,25 +215,38 @@ export function DatasetOpsDashboard() {
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <BarChart3 size={20} aria-hidden="true" />
-                Risk radar
+                {report ? "Risk radar" : "Audit coverage"}
               </h2>
-              <div className="h-[260px]" aria-label="Risk factor chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={riskData}>
-                    <PolarGrid stroke="oklch(0.45 0.02 78 / 0.55)" />
-                    <PolarAngleAxis dataKey="metric" tick={{ fill: "oklch(0.78 0.02 78)", fontSize: 11 }} />
-                    <Radar dataKey="value" fill="oklch(0.62 0.1 225)" fillOpacity={0.35} stroke="oklch(0.72 0.11 225)" />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
+              {report ? (
+                <div className="h-[260px]" aria-label="Risk factor chart">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={riskData}>
+                      <PolarGrid stroke="oklch(0.45 0.02 78 / 0.55)" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: "oklch(0.78 0.02 78)", fontSize: 11 }} />
+                      <Radar dataKey="value" fill="oklch(0.62 0.1 225)" fillOpacity={0.35} stroke="oklch(0.72 0.11 225)" />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  <CoverageRow label="Folder labels" value={fastScan ? "Checked" : "Waiting"} />
+                  <CoverageRow label="Class distribution" value={fastScan ? "Checked" : "Waiting"} />
+                  <CoverageRow label="Resolution sampling" value="Fast Scan only" />
+                  <CoverageRow label="Leakage" value="Python report required" />
+                  <CoverageRow label="Duplicates / blur / corrupt files" value="Python report required" />
+                </div>
+              )}
+              <p className="mt-4 rounded-[1.25rem] bg-white/[0.035] p-3 text-xs leading-5 text-[oklch(0.74_0.02_78)]">
+                Leakage requires train/val/test folders. A train-only scan has no validation or test split to compare against.
+              </p>
             </section>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1fr)]">
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-5">
               <h2 className="text-lg font-semibold">Class distribution</h2>
               {classData.length ? (
-                <div className="mt-4 h-[300px]" aria-label="Class distribution chart">
+                <div className="mt-4 h-[220px]" aria-label="Class distribution chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={classData}>
                       <CartesianGrid stroke="oklch(0.38 0.02 78 / 0.45)" vertical={false} />
@@ -203,10 +264,26 @@ export function DatasetOpsDashboard() {
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-5">
               <h2 className="text-lg font-semibold">Evidence cards</h2>
               <div className="mt-4 grid gap-3">
-                <RiskCard label="Leakage" value={report?.leakage.leakedGroups ?? 0} />
-                <RiskCard label="Duplicate groups" value={report?.duplicates.exactDuplicateGroups ?? 0} />
-                <RiskCard label="Blurred images" value={report?.quality.blurredImages ?? 0} />
-                <RiskCard label="Corrupt images" value={report?.dataset.corruptImages ?? 0} />
+                <RiskCard
+                  label="Leakage"
+                  value={report ? `${report.leakage.leakedGroups} group(s)` : "Not checked in Fast Scan"}
+                  detail="Needs train/val/test hash comparison."
+                />
+                <RiskCard
+                  label="Duplicate groups"
+                  value={report ? `${report.duplicates.exactDuplicateGroups} group(s)` : "Not checked in Fast Scan"}
+                  detail="Exact SHA-256 duplicate detection runs in Python audit."
+                />
+                <RiskCard
+                  label="Blurred images"
+                  value={report ? `${report.quality.blurredImages} image(s)` : "Not checked in Fast Scan"}
+                  detail="Laplacian blur score is part of the Python report."
+                />
+                <RiskCard
+                  label="Corrupt images"
+                  value={report ? `${report.dataset.corruptImages} image(s)` : "Not checked in Fast Scan"}
+                  detail="Decoded locally by the Python image engine."
+                />
               </div>
             </section>
           </div>
@@ -225,11 +302,11 @@ export function DatasetOpsDashboard() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
       <div className="text-xs text-[oklch(0.68_0.02_78)]">{label}</div>
-      <div className="mt-1 font-mono text-xl text-[oklch(0.94_0.01_78)]">{value}</div>
+      <div className={`${compact ? "text-sm" : "text-xl"} mt-1 font-mono text-[oklch(0.94_0.01_78)]`}>{value}</div>
     </div>
   );
 }
@@ -279,11 +356,23 @@ function UploadPanel({
   );
 }
 
-function RiskCard({ label, value }: { label: string; value: number }) {
+function CoverageRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
+    <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
       <span className="text-sm text-[oklch(0.76_0.02_78)]">{label}</span>
-      <span className="font-mono text-2xl text-[oklch(0.78_0.1_225)]">{value}</span>
+      <span className="text-right font-mono text-sm text-[oklch(0.78_0.1_225)]">{value}</span>
+    </div>
+  );
+}
+
+function RiskCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm text-[oklch(0.76_0.02_78)]">{label}</span>
+        <span className="text-right font-mono text-sm text-[oklch(0.78_0.1_225)]">{value}</span>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[oklch(0.68_0.02_78)]">{detail}</p>
     </div>
   );
 }

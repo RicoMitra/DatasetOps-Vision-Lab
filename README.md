@@ -47,6 +47,8 @@ $env:PYTHONPATH="engine/python/src"
 
 ## Run Python Audit
 
+Run this first when you need duplicate, leakage, corrupt image, blur, brightness, and contrast evidence:
+
 ```bash
 pnpm engine:scan -- --path ./dataset --out ./reports/latest-report.json
 ```
@@ -67,6 +69,8 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), then import `reports/latest-report.json`.
+
+Browser Fast Scan is available for quick folder/class checks, but it does not run deep audit metrics. Leakage needs a `train/val/test` structure so the engine has split boundaries to compare.
 
 ## Quality Checks
 
