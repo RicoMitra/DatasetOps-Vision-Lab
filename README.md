@@ -84,5 +84,4 @@ pnpm test:e2e
 ```
 
 ## Deployment
-
-Deploy `apps/web` as a standalone Vercel project named `datasetops-vision-lab`. No environment variables are required.
+https://datasetops-vision-m5tqcteii-dan1el.vercel.app/
