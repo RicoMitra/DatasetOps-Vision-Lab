@@ -84,4 +84,4 @@ pnpm test:e2e
 ```
 
 ## Deployment
-https://datasetops-vision-m5tqcteii-dan1el.vercel.app/
+https://web-chi-six-18.vercel.app/
